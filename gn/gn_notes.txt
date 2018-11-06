@@ -1,0 +1,31 @@
+Problem variable notes:
+
+MSSubClass: Actually a factor -- denotes what 'type' of housing it is
+LotFrontage: Lots of NAs, could they be zeros for units not connected to the street? Check the MSSubClass
+Alley: NAs should be refactored as 0, then gravel and paved as 1,2
+Utilities: There's only 1 place without all utilities - probably drop this column
+OverallQual & OverallCond: 1-10 scale, should be interpreted as numeric to gauge the scale
+YearBuilt: If interpreted as numeric, then it is a guage of newness. Could try grouping to see if certain eras are different. Probably don't want to factor each individual year. 
+YearRemodAdd: Could derive a variable for 'HasBeenRemodeled' if YearRemodAdd == YearBuilt or subtract them to model well maintained old houses
+RoofMatl: Very few that are not CompShg -> probably drop
+MasVnrType & MasVnrArea: 8 NA's for the same rows -> maybe drop these or ignore
+ExterQual & ExterCond: Ordered rating, could change to integer
+All Basement Variables: Replace NA's to indicate no basement, possibly change to integer to order
+Heating: Almost all are Gas - probably drop
+HeatingQC: Ordered - change to integer
+Electrical: There's one NA?
+X1stFlrSF, X2ndFlorSF: Derive how many floors using these and the basement value
+LowQualFinSF: Most are zero, perhaps switch to a factor or drop
+Bathroom Vars: Combine to produce a single bathroom number potentially
+BedroomAbvGr: There are some a few zero bedrooms - check those rows
+KitchenQual: Turn into ordered integer
+Functional: Perhaps only include functional houses in a pricing model 
+FireplaceQu: NA's for no fireplace - replace with a zero and make this an ordered integer
+GarageVariables: NA's instead of No Garage
+GarageQual, GarageCond: Turn into a numeric ordered var
+Pool Variables: Pretty much no samples with pools, probably drop them
+Fence: NA's need to be refactored as 0's
+Misc: This is basically a shed or no shed variable, there's 2 others 2 2nd garages and 1 tennis court, could probably just keep MiscVal variable
+
+
+
