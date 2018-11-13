@@ -238,8 +238,8 @@ levels(test_procdata$MiscFeature) <- c(levels(test_procdata$MiscFeature), "None"
 test_procdata$MiscFeature[is.na(test_procdata$MiscFeature)] <- as.factor("None")
 
 
-# write.csv(train_procdata, file=paste(train_fp,"train_processed.csv", sep=""))
-# write.csv(test_procdata, file=paste(test_fp,"test_processed.csv", sep=""))
+write.csv(train_procdata, file=paste(train_fp,"train_processed.csv", sep=""))
+write.csv(test_procdata, file=paste(test_fp,"test_processed.csv", sep=""))
 
 
 # get a summary of the data after preprocessing
