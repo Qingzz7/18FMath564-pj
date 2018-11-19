@@ -1,0 +1,8 @@
+#quickly visualize the whole dataset 
+library(ggplot2)
+install.packages("tabplot")
+library(tabplot)
+tableplot(train_origdata[,2:21])
+tableplot(train_origdata[,22:41])
+tableplot(train_origdata[,42:61])
+tableplot(train_origdata[,62:81])
