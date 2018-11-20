@@ -241,24 +241,22 @@ test_procdata$MiscFeature[is.na(test_procdata$MiscFeature)] <- as.factor("None")
 # more preprocessing after refer to other kaggle tests
 # yuqing 181119
 
-# find highily correlated numeric variables
+# combine number of bathrooms
+train_procdata$TotBathrooms = train_procdata$FullBath + (train_procdata$HalfBath*0.5) + train_procdata$BsmtFullBath + (train_procdata$BsmtHalfBath*0.5)
+test_procdata$TotBathrooms = test_procdata$FullBath + (test_procdata$HalfBath*0.5) + test_procdata$BsmtFullBath + (test_procdata$BsmtHalfBath*0.5)
+# Then remove other bathrooms variables
+train_procdata[,c('FullBath','HalfBath','BsmtFullBath','BsmtHalfBath')]=NULL
+test_procdata[,c('FullBath','HalfBath','BsmtFullBath','BsmtHalfBath')]=NULL
 
-# remove variables that mainly are from one class
+# combine porch realted varaibles
+train_procdata$TotPorch = train_procdata$OpenPorchSF+train_procdata$EnclosedPorch+train_procdata$X3SsnPorch+train_procdata$ScreenPorch+train_procdata$WoodDeckSF
+test_procdata$TotPorch = test_procdata$OpenPorchSF+test_procdata$EnclosedPorch+test_procdata$X3SsnPorch+test_procdata$ScreenPorch+test_procdata$WoodDeckSF
+# Then remove other porch variables
+train_procdata[,c('OpenPorchSF','EnclosedPorch','X3SsnPorch','ScreenPorch','WoodDeckSF')]=NULL
+test_procdata[,c('OpenPorchSF','EnclosedPorch','X3SsnPorch','ScreenPorch','WoodDeckSF')]=NULL
 
 
-
-
-write.csv(train_procdata, file=paste(train_fp,"train_processed.csv", sep=""))
-write.csv(test_procdata, file=paste(test_fp,"test_processed.csv", sep=""))
-
-
-
-# get a summary of the data after preprocessing
-summary(train_procdata)
-summary(test_procdata)
-dim(train_procdata)
-str(train_procdata)
-
+# find highily related numeric variables to sale price and drop numeric variables have correlation lower than 
 # check varaible type
 catv <- names(train_procdata[,sapply(train_procdata,is.factor)]) # categorical
 catv
@@ -266,37 +264,44 @@ numv <- names(train_procdata[,sapply(train_procdata,is.numeric)]) # numeric
 numv
 logv <- names(train_procdata[,sapply(train_procdata,is.logical)]) # binary
 logv
-
-library(corrplot)
-cor <- cor(train_procdata[numv]) #get correaltion matrix for numeric variable
-corrplot.mixed(cor) # really messay figure, need to explore more
-
-
-library(ggplot2)
-library(reshape)
-melttrain <- melt(train_procdata)
-melttest <- melt(test_procdata)
-
-#boxplot for training data
-ptrain <- ggplot(melttrain, aes(factor(variable), value)) 
-ptrain + geom_boxplot() + facet_wrap(~variable, scale="free")
-
-#density plot for train data
-ggplot(data = melttrain, aes(x = value)) + 
-  stat_density() + 
-  facet_wrap(~variable, scales = "free")
-#density plot for test data
-ggplot(data = melttest, aes(x = value)) + 
-  stat_density() + 
-  facet_wrap(~variable, scales = "free")
+#sort on decreasing correlations with SalePrice
+cor_train = cor(train_procdata[,numv]) #get correaltion matrix for numeric variable
+cor_train_sort = as.data.frame(sort(cor_train[,'SalePrice'],decreasing = TRUE))
+# seperate low and high corelations column names
+highcor_name = names(which(apply(cor_train_sort, 1, function(x) abs(x)>0.35)))
+lowcor_name = names(which(apply(cor_train_sort, 1, function(x) abs(x)<0.35)))
+train_procdata[,lowcor_name]=NULL
 
 
-l=lm(SalePrice~., data=train_procdata)
-plot(l) # check linear regression assumption.  There are outliers and residual assumption does not stand
+# remove variables that are in multicolinearity relation
+cor_mcl = cor(train_procdata[,names(train_procdata[,sapply(train_procdata,is.numeric)])]) 
+corrplot::corrplot.mixed(cor_mcl)
+dropVars = c('ExterQualNum','GarageCars','X1stFlrSF', 'TotRmsAbvGrd') # select variables with correlation larger than
+train_procdata = train_procdata[,!(names(train_procdata) %in% dropVars)]
 
-car::vif(l) # Variance inflation factors.
-# Error in vif.default(l) : there are aliased coefficients in the model
-# The error indicates multicolinearity
-alias(l)
 
+# use a small random forest to find important categorical variables
+library(randomForest)
+set.seed(564)
+RF = randomForest(x=train_procdata, y=train_procdata$SalePrice, ntree=100 ,importance=TRUE)
+RF_imp=as.data.frame( importance(RF) )
+imp_v = data.frame(Variables = row.names(RF_imp), MSE = RF_imp[,1],NodePurity=RF_imp[,2])
+imp_v = imp_v[order(imp_v$NodePurity , decreasing = TRUE),]
+dropVarsc = c('Electrical','MiscFeature','Condition2','Street','PoolQC') # IncNodePurity with < E09
+train_procdata = train_procdata[,!(names(train_procdata) %in% dropVarsc)]
+
+# remove variables that mainly are from one class ?
+
+
+# write the data after preprocessing to file
+write.csv(train_procdata, file=paste(train_fp,"train_processed.csv", sep=""))
+write.csv(test_procdata, file=paste(test_fp,"test_processed.csv", sep=""))
+
+
+# check and remove ourliers
+# all <- all[-c(524, 692 ,1299),] # from linear regression plots
+
+# check target distribution
+qqnorm(train_procdata$SalePrice)
+qqline(train_procdata$SalePrice)
 

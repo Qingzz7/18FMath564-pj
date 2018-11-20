@@ -9,22 +9,22 @@ testdf=testdf[,-c(1,2)]
 
 
 # define rmlse function
-rmse <- function(yhat, y) {
+rmlse <- function(yhat, y) {
   n <- length(yhat)
-  return(sqrt((1/n)*sum((yhat-y)^2)))
+  return(sqrt((1/n)*sum((log(yhat)-log(y))^2)))
 }
 
 
 # scale the numeric data since scaled data are required in some models
 # I think we need to scale data and we can discuss this
-numv = names(df[,sapply(df,is.numeric)]) # numeric 
-numv
-catv = names(df[,sapply(df,is.factor)]) # numeric 
-catv
-logv = names(df[,sapply(df,is.logical)]) # binary
-logv
-df_scale = scale(df[,numv],center=FALSE)
-df_scale = data.frame(df_scale,df[,catv],df[,logv])
+# numv = names(df[,sapply(df,is.numeric)]) # numeric 
+# numv
+# catv = names(df[,sapply(df,is.factor)]) # numeric 
+# catv
+# logv = names(df[,sapply(df,is.logical)]) # binary
+# logv
+# df_scale = scale(df[,numv],center=FALSE)
+# df_scale = data.frame(df_scale,df[,catv],df[,logv])
 
 # perform cross-validtion on training data set
 library(caret)
@@ -57,7 +57,7 @@ lm_stepAIC=train(SalePrice~.,data=df,method='lmStepAIC',trControl=controlParamet
 lambdas = 10^seq(10, -2, length = 100)
 # ridge_fit <- cv.glmnet(train_matrix, y, alpha=0, lambda=lambdas)
 ridgeGrid=expand.grid(alpha=0,lambda=lambdas)
-lm_ridge=train(SalePrice~., data=df_scale, method = 'glmnet',trControl=controlParameter,tuneGrid=ridgeGrid)
+lm_ridge=train(SalePrice~., data=df, method = 'glmnet',trControl=controlParameter,tuneGrid=ridgeGrid)
 
 # Lasso regression
 # lasso_fit <- cv.glmnet(train_matrix, y, alpha=1, lambda=lambdas)
@@ -70,7 +70,7 @@ lm_elas=train(SalePrice~., data=df, method = 'glmnet', trControl=controlParamete
 
 
 # Tree-Based model
-# CART Tree
+# CART Tree, cannot set method to be anova 
 tree_cp=train(SalePrice~.,data=df,method='rpart',trControl=controlParameter)
 # tree_1se=train(SalePrice~.,data=df,method='rpart1SE',trControl=controlParameter)
 
@@ -88,15 +88,15 @@ lm_elas_pred=predict(lm_elas,df)
 tree_cp_pred=predict(tree_cp,df)
 
 # To calculate rmse
-lm_rmse = rmse(abs(lm_pred), df$SalePrice)
+lm_rmse = rmlse(abs(lm_pred), df$SalePrice)
 # lm_forward_rmse = rmse(abs(lm_forward_pred), df$SalePrice) 
 # lm_backward_rmse = rmse(abs(lm_backward_pred), df$SalePrice)
 # lm_step_rmse = rmse(abs(lm_step_pred), df$SalePrice)
-lm_stepAIC_rmse = rmse(abs(lm_stepAIC_pred), df$SalePrice)
-lm_lasso_rmse=rmse(abs(lm_lasso), df$SalePrice)
-lm_ridge_rmse=rmse(abs(lm_ridge), df$SalePrice)
-lm_elas_rmse=rmse(abs(lm_elas), df$SalePrice)
-tree_cp_rmse=rmse(abs(tree_cp), df$SalePrice)
+lm_stepAIC_rmse = rmlse(abs(lm_stepAIC_pred), df$SalePrice)
+lm_lasso_rmse=rmlse(abs(lm_lasso_pred), df$SalePrice)
+lm_ridge_rmse=rmlse(abs(lm_ridge_pred), df$SalePrice)
+lm_elas_rmse=rmlse(abs(lm_elas_pred), df$SalePrice)
+tree_cp_rmse=rmlse(abs(tree_cp_pred), df$SalePrice)
 
 
 
