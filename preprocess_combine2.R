@@ -1,5 +1,5 @@
-train_fp <- "C:/Users/ZH1/Desktop/Fall 2018/Math564/project/all/"
-test_fp <- "C:/Users/ZH1/Desktop/Fall 2018/Math564/project/all/"
+train_fp <- "~/Documents/GitHub/18FMath564-pj/data/"
+test_fp <- "~/Documents/GitHub/18FMath564-pj/data/"
 
 train_fn <- "train.csv"
 test_fn <- "test.csv"
@@ -190,32 +190,38 @@ test_procdata$BsmtFinType2[is.na(test_procdata$BsmtFinType2)] <- as.factor("No")
 test_procdata$BsmtExposure[is.na(test_procdata$BsmtExposure)] <- as.factor("No")
 
 # Track the heating outliers and drop it ***why GasA is outlier, I think we need to discard it
-# train_heating_outliers <- train_origdata[train_origdata$Heating != "GasA",]
-# test_heating_outliers <- test_origdata[test_origdata$Heating != "GasA",]
+# I think Grant means that heating system that is not GasA is outlier since most data is with GasA,we may drop this column
+train_heating_outliers <- train_origdata[train_origdata$Heating != "GasA",]
+test_heating_outliers <- test_origdata[test_origdata$Heating != "GasA",]
 train_procdata <- within(train_procdata, rm(Heating))
 test_procdata <- within(test_procdata, rm(Heating))
 
 # Order the heating quality ratings **ratingtoint not found? and why order it?
-train_procdata$HeatingQCNum <- sapply(train_origdata$HeatingQC, ratingtoint)
-train_procdata <- within(train_procdata, rm(HeatingQC))
-test_procdata$HeatingQCNum <- sapply(test_origdata$HeatingQC, ratingtoint)
-test_procdata <- within(test_procdata, rm(HeatingQC))
+# Grant writes his own function called ratingtonit which is not applicable now. 
+# I think we dont need to change it to int since it is categorical variables not ordianry variables
+
+# train_procdata$HeatingQCNum <- sapply(train_origdata$HeatingQC, ratingtoint)
+# train_procdata <- within(train_procdata, rm(HeatingQC))
+# test_procdata$HeatingQCNum <- sapply(test_origdata$HeatingQC, ratingtoint)
+# test_procdata <- within(test_procdata, rm(HeatingQC))
 
 # The 1 Electrical NA looks normal, so impute from the most common class ***I use FuseA
-train_procdata$Electrical[is.na(train_procdata$Electrical)] <- as.factor("FuseA")
+# SBrkr is the most common one, so I changed it to SBrkr
+train_procdata$Electrical[is.na(train_procdata$Electrical)] <- as.factor("SBrkr")
 
 # Numericize kitchen quality **why, I think it is ok as factor
-train_procdata$KitchenQualNum <- sapply(train_origdata$KitchenQual, ratingtoint)
-test_procdata$KitchenQualNum <- sapply(test_origdata$KitchenQual, ratingtoint)
-train_procdata <- within(train_procdata, rm(KitchenQual))
-test_procdata <- within(test_procdata, rm(KitchenQual))
+# train_procdata$KitchenQualNum <- sapply(train_origdata$KitchenQual, ratingtoint)
+# test_procdata$KitchenQualNum <- sapply(test_origdata$KitchenQual, ratingtoint)
+# train_procdata <- within(train_procdata, rm(KitchenQual))
+# test_procdata <- within(test_procdata, rm(KitchenQual))
 
 # Functional has a couple NAs in the test set - these seem to be pretty rough houses from other traits, so going to give them minor dings
 #***I use Typ
 test_procdata$Functional[is.na(test_procdata$Functional)] <- as.factor("Typ")
 
 #***use "TA" to replace NA in KitchenQual
-train_procdata$KitchenQual[is.na(train_procdata$KitchenQual)] <- as.factor("TA")
+# This one is hard to tell and there is no NA in this column
+# train_procdata$KitchenQual[is.na(train_procdata$KitchenQual)] <- as.factor("TA")
 
 # Fireplace needs to have a different factor other than NA
 levels(train_procdata$FireplaceQu) <- c(levels(train_origdata$FireplaceQu), "No")
@@ -249,9 +255,13 @@ train_procdata <- within(train_procdata, rm(GarageYrBlt))
 test_procdata <- within(test_procdata, rm(GarageYrBlt))
 
 # Only a few samples have pools -> just make a binary factor
-#**here should be labeled as withPool? cause poolarea >0?
+#**here should be labeled as withPool? cause poolarea >0? 
+# Grant did this, all poolarea>0 is labeled as TRUE
 train_procdata$Pool <- as.factor(train_procdata$PoolArea > 0)
 test_procdata$Pool <- as.factor(test_procdata$PoolArea > 0)
+# drop PoolArea
+train_procdata$PoolArea=NULL
+test_procdata$PoolArea=NULL
 
 # levels(train_procdata$PoolQC) <- c(levels(train_procdata$PoolQC), "No")
 # train_procdata$PoolQC[is.na(train_procdata$PoolQC)] <- as.factor("No")
@@ -325,22 +335,27 @@ library(randomForest)
 set.seed(564)
 RF = randomForest(x=train_procdata, y=train_procdata$SalePrice, ntree=100 ,importance=TRUE)
 RF_imp=as.data.frame( importance(RF) )
-imp_v = data.frame(Variables = row.names(RF_imp), MSE = RF_imp[,1],NodePurity=RF_imp[,2])
-imp_v = imp_v[order(imp_v$NodePurity , decreasing = TRUE),]
-dropVarsc = c('Electrical','MiscFeature','Condition2','Street','PoolQC') # IncNodePurity with < E09
+imp_v = data.frame(Variables = row.names(RF_imp), IncMSE = RF_imp[,1],IncNodePurity=RF_imp[,2])
+imp_v = imp_v[order(imp_v$IncNodePurity, decreasing = TRUE),]
+dropVarsc = c('Electrical') # IncNodePurity with < E09
 train_procdata = train_procdata[,!(names(train_procdata) %in% dropVarsc)]
 
 # remove variables that mainly are from one class ?
 
+
+
+# check and remove ourliers
+train_procdata=train_procdata[-c(524, 692 ,1299),] # from linear regression plots
+
+# check target distribution
+qqnorm(train_procdata$SalePrice)
+qqline(train_procdata$SalePrice)
+
+# apply log transformation to the target
+train_procdata$SalePrice=log(train_procdata$SalePrice)
 
 # write the data after preprocessing to file
 write.csv(train_procdata, file=paste(train_fp,"train_processed.csv", sep=""))
 write.csv(test_procdata, file=paste(test_fp,"test_processed.csv", sep=""))
 
 
-# check and remove ourliers
-# all <- all[-c(524, 692 ,1299),] # from linear regression plots
-
-# check target distribution
-qqnorm(train_procdata$SalePrice)
-qqline(train_procdata$SalePrice)

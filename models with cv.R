@@ -11,7 +11,7 @@ testdf=testdf[,-c(1,2)]
 # define rmlse function
 rmlse <- function(yhat, y) {
   n <- length(yhat)
-  return(sqrt((1/n)*sum((log(yhat)-log(y))^2)))
+  return(sqrt((1/n)*sum((yhat-y)^2))) # no need for log here since y has been log transformed
 }
 
 
@@ -47,7 +47,7 @@ lm_forward=train(SalePrice~.,data=df,method='leapForward',trControl=controlParam
 lm_backward=train(SalePrice~.,data=df,method='leapBackward',trControl=controlParameter)
 lm_step=train(SalePrice~.,data=df,method='leapSeq',trControl=controlParameter)
 # Linear Regression with Stepwise Selection
-lm_stepAIC=train(SalePrice~.,data=df,method='lmStepAIC',trControl=controlParameter)
+# lm_stepAIC=train(SalePrice~.,data=df,method='lmStepAIC',trControl=controlParameter)
 
 # Generalized Linear Model with Stepwise Feature Selection
 # glm_stepAIC=train(SalePrice~.,data=df,method='glmStepAIC',trControl=controlParameter)
@@ -78,9 +78,9 @@ tree_cp=train(SalePrice~.,data=df,method='rpart',trControl=controlParameter)
 
 # Make Prediction
 lm_pred = predict(lm,df)
-# lm_forward_pred = predict(lm_forward,df)
-# lm_backward_pred = predict(lm_backward,df)
-# lm_step_pred = predict(lm_step,df)
+lm_forward_pred = predict(lm_forward,df)
+lm_backward_pred = predict(lm_backward,df)
+lm_step_pred = predict(lm_step,df)
 lm_stepAIC_pred = predict(lm_stepAIC,df)
 lm_lasso_pred=predict(lm_lasso,df)
 lm_ridge_pred=predict(lm_ridge,df)
@@ -88,15 +88,15 @@ lm_elas_pred=predict(lm_elas,df)
 tree_cp_pred=predict(tree_cp,df)
 
 # To calculate rmse
-lm_rmse = rmlse(abs(lm_pred), df$SalePrice)
-# lm_forward_rmse = rmse(abs(lm_forward_pred), df$SalePrice) 
-# lm_backward_rmse = rmse(abs(lm_backward_pred), df$SalePrice)
-# lm_step_rmse = rmse(abs(lm_step_pred), df$SalePrice)
-lm_stepAIC_rmse = rmlse(abs(lm_stepAIC_pred), df$SalePrice)
-lm_lasso_rmse=rmlse(abs(lm_lasso_pred), df$SalePrice)
-lm_ridge_rmse=rmlse(abs(lm_ridge_pred), df$SalePrice)
-lm_elas_rmse=rmlse(abs(lm_elas_pred), df$SalePrice)
-tree_cp_rmse=rmlse(abs(tree_cp_pred), df$SalePrice)
+lm_rmlse = rmlse(abs(lm_pred), df$SalePrice)
+lm_forward_rmlse = rmlse(abs(lm_forward_pred), df$SalePrice) 
+lm_backward_rmlse = rmlse(abs(lm_backward_pred), df$SalePrice)
+lm_step_rmlse = rmlse(abs(lm_step_pred), df$SalePrice)
+lm_stepAIC_rmlse = rmlse(abs(lm_stepAIC_pred), df$SalePrice)
+lm_lasso_rmlse=rmlse(abs(lm_lasso_pred), df$SalePrice)
+lm_ridge_rmlse=rmlse(abs(lm_ridge_pred), df$SalePrice)
+lm_elas_rmlse=rmlse(abs(lm_elas_pred), df$SalePrice)
+tree_cp_rmlse=rmlse(abs(tree_cp_pred), df$SalePrice)
 
 
 
