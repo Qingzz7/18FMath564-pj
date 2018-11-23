@@ -60,3 +60,4 @@ printcp(tree_fit)
 # Try a random forest for regression
 rf_fit <- randomForest(SalePrice~., data=train)
 rf_preds <- predict(rf_fit, newx=train)
+rf_rmlse <- rmlse(rf_preds, y)
