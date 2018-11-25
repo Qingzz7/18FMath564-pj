@@ -61,7 +61,7 @@ lm_forward=train(SalePrice~.,data=df,method='leapForward',trControl=controlParam
 lm_backward=train(SalePrice~.,data=df,method='leapBackward',trControl=controlParameter)
 lm_step=train(SalePrice~.,data=df,method='leapSeq',trControl=controlParameter)
 # Linear Regression with Stepwise Selection
-# lm_stepAIC=train(SalePrice~.,data=df,method='lmStepAIC',trControl=controlParameter)
+lm_stepAIC=train(SalePrice~.,data=df,method='lmStepAIC',trControl=controlParameter)
 
 # Generalized Linear Model with Stepwise Feature Selection
 # glm_stepAIC=train(SalePrice~.,data=df,method='glmStepAIC',trControl=controlParameter)
