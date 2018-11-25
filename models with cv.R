@@ -1,8 +1,8 @@
 # cross validation model frame
 # 181114 yuqing zhao
 
-df= read.csv('/Users/Grant/gdfs/My Drive/F2018/MATH564/18FMath564-pj/data/train_processed.csv')
-testdf= read.csv('/Users/Grant/gdfs/My Drive/F2018/MATH564/18FMath564-pj/data/test_processed.csv')
+df= read.csv('~/Documents/GitHub/18FMath564-pj/data/train_processed.csv')
+testdf= read.csv('~/Documents/GitHub/18FMath564-pj/data/test_processed.csv')
 #remove first two columns which are index
 df=df[,-c(1,2)]
 testdf=testdf[,-c(1,2)]
@@ -12,15 +12,15 @@ testdf=testdf[,-c(1,2)]
 # GarageFinish, GarageQual, GarageCond, BsmntFinType1, BsmntCond, Exterior2nd have NAs
 # There's major overlap in general between these factors - see contingency tables 
 
-xtabs(~GarageQual+GarageCond+GarageFinish, data=df)
-xtabs(~BsmtCond+BsmtFinType1, data=df)
+# xtabs(~GarageQual+GarageCond+GarageFinish, data=df)
+# xtabs(~BsmtCond+BsmtFinType1, data=df)
 
 # Keep GarageQual and BsmtCond
 
-df <- df[, -c(which(colnames(df) == "GarageFinish"),
-              which(colnames(df) == "Exterior2nd"),
-              which(colnames(df) == "GarageCond"),
-              which(colnames(df) == "BsmtFinType1"))]
+# df <- df[, -c(which(colnames(df) == "GarageFinish"),
+#              which(colnames(df) == "Exterior2nd"),
+#              which(colnames(df) == "GarageCond"),
+#              which(colnames(df) == "BsmtFinType1"))]
 
 # define rmlse function
 rmlse <- function(yhat, y) {
@@ -95,7 +95,7 @@ lm_pred = predict(lm,df)
 lm_forward_pred = predict(lm_forward,df)
 lm_backward_pred = predict(lm_backward,df)
 lm_step_pred = predict(lm_step,df)
-lm_stepAIC_pred = predict(lm_stepAIC,df)
+# lm_stepAIC_pred = predict(lm_stepAIC,df)
 lm_lasso_pred=predict(lm_lasso,df)
 lm_ridge_pred=predict(lm_ridge,df)
 lm_elas_pred=predict(lm_elas,df)
@@ -106,7 +106,7 @@ lm_rmlse = rmlse(abs(lm_pred), df$SalePrice)
 lm_forward_rmlse = rmlse(abs(lm_forward_pred), df$SalePrice) 
 lm_backward_rmlse = rmlse(abs(lm_backward_pred), df$SalePrice)
 lm_step_rmlse = rmlse(abs(lm_step_pred), df$SalePrice)
-lm_stepAIC_rmlse = rmlse(abs(lm_stepAIC_pred), df$SalePrice)
+# lm_stepAIC_rmlse = rmlse(abs(lm_stepAIC_pred), df$SalePrice)
 lm_lasso_rmlse=rmlse(abs(lm_lasso_pred), df$SalePrice)
 lm_ridge_rmlse=rmlse(abs(lm_ridge_pred), df$SalePrice)
 lm_elas_rmlse=rmlse(abs(lm_elas_pred), df$SalePrice)

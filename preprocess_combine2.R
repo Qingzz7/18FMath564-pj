@@ -306,6 +306,7 @@ train_procdata[,c('OpenPorchSF','EnclosedPorch','X3SsnPorch','ScreenPorch','Wood
 test_procdata[,c('OpenPorchSF','EnclosedPorch','X3SsnPorch','ScreenPorch','WoodDeckSF')]=NULL
 
 
+
 # find highily related numeric variables to sale price and drop numeric variables have correlation lower than 
 # check varaible type
 catv <- names(train_procdata[,sapply(train_procdata,is.factor)]) # categorical
@@ -337,22 +338,35 @@ RF = randomForest(x=train_procdata, y=train_procdata$SalePrice, ntree=100 ,impor
 RF_imp=as.data.frame( importance(RF) )
 imp_v = data.frame(Variables = row.names(RF_imp), IncMSE = RF_imp[,1],IncNodePurity=RF_imp[,2])
 imp_v = imp_v[order(imp_v$IncNodePurity, decreasing = TRUE),]
-dropVarsc = c('Electrical') # IncNodePurity with < E09
-train_procdata = train_procdata[,!(names(train_procdata) %in% dropVarsc)]
+train_procdata$Electrical=NULL
 
-# remove variables that mainly are from one class ?
+# dropVarsc = c('Electrical') # IncNodePurity with < E09
+# dropVarsc = imp_v$Variables[imp_v$IncNodePurity<1.0e+10] # IncNodePurity with < E10
+# train_procdata = train_procdata[,!dropVarsc %in% dropVarsc]
 
 
+# linear regression for test
+l=lm(SalePrice~.,train_procdata)
+plot(l)
 
-# check and remove ourliers
-train_procdata=train_procdata[-c(524, 692 ,1299),] # from linear regression plots
+# check and remove ourliers ?????
+train_procdata=train_procdata[-c(524,1183,1299),] # from linear regression plots
 
 # check target distribution
 qqnorm(train_procdata$SalePrice)
 qqline(train_procdata$SalePrice)
-
 # apply log transformation to the target
 train_procdata$SalePrice=log(train_procdata$SalePrice)
+
+# check variables skewness ?????
+numv <- names(train_procdata[,sapply(train_procdata,is.numeric)]) # numeric 
+numv
+for(i in numv) {
+  if (abs(skewness(train_procdata[,i]))>0.8){
+    train_procdata[,i] = log(train_procdata[,i]+1)
+  }
+}
+
 
 # write the data after preprocessing to file
 write.csv(train_procdata, file=paste(train_fp,"train_processed.csv", sep=""))
