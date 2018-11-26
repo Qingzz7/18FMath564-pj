@@ -1,26 +1,42 @@
+library(rpart)
+library(caret)
+library(leaps)
+library(glmnet)
+
+set.seed(564)
+
+
 # cross validation model frame
 # 181114 yuqing zhao
 
-df= read.csv('~/Documents/GitHub/18FMath564-pj/data/train_processed.csv')
-testdf= read.csv('~/Documents/GitHub/18FMath564-pj/data/test_processed.csv')
+train_df <- read.csv('/Users/Grant/gdfs/My Drive/F2018/MATH564/18FMath564-pj/data/train_processed.csv')
+val_df <- read.csv('/Users/Grant/gdfs/My Drive/F2018/MATH564/18FMath564-pj/data/test_processed.csv')
+
 #remove first two columns which are index
-df=df[,-c(1,2)]
-testdf=testdf[,-c(1,2)]
+train_df <- train_df[,-c(1,2)]
+val_df <- val_df[,-c(1,2)]
 
 
 # There are linearly dependent factors amongst the 'No Garage' and 'No Basement' type variables.
 # GarageFinish, GarageQual, GarageCond, BsmntFinType1, BsmntCond, Exterior2nd have NAs
 # There's major overlap in general between these factors - see contingency tables 
+# Also removing GarageType since it's insignificant and linearly dependent amongst NoGarage factors
+# Remove Basement Condition in favor of Basement Quality
 
-# xtabs(~GarageQual+GarageCond+GarageFinish, data=df)
-# xtabs(~BsmtCond+BsmtFinType1, data=df)
+# xtabs(~GarageQual+GarageCond+GarageFinish, data=train_df)
+# xtabs(~BsmtCond+BsmtFinType1, data=train_df)
 
 # Keep GarageQual and BsmtCond
 
-# df <- df[, -c(which(colnames(df) == "GarageFinish"),
-#              which(colnames(df) == "Exterior2nd"),
-#              which(colnames(df) == "GarageCond"),
-#              which(colnames(df) == "BsmtFinType1"))]
+train_df <- train_df[, -c(which(colnames(train_df) == "GarageFinish"),
+                            which(colnames(train_df) == "Exterior2nd"),
+                            which(colnames(train_df) == "GarageCond"),
+                            which(colnames(train_df) == "BsmtFinType1"))]
+
+val_df <- val_df[, -c(which(colnames(val_df) == "GarageFinish"),
+                          which(colnames(val_df) == "Exterior2nd"),
+                          which(colnames(val_df) == "GarageCond"),
+                          which(colnames(val_df) == "BsmtFinType1"))]
 
 # define rmlse function
 rmlse <- function(yhat, y) {
@@ -31,102 +47,150 @@ rmlse <- function(yhat, y) {
 
 # scale the numeric data since scaled data are required in some models
 # I think we need to scale data and we can discuss this
-numv = names(df[,sapply(df,is.numeric)]) # numeric 
-numv
-catv = names(df[,sapply(df,is.factor)]) # numeric 
-catv
-logv = names(df[,sapply(df,is.logical)]) # binary
-logv
-df_scale = scale(df[,numv],center=FALSE)
-df_scale = data.frame(df_scale,df[,catv],df[,logv])
+numv <- names(train_df[,sapply(train_df,is.numeric)]) # numeric 
+catv <- names(train_df[,sapply(train_df,is.factor)]) # numeric 
+logv <- names(train_df[,sapply(train_df,is.logical)]) # binary
+df_scale <- scale(train_df[,numv],center=FALSE)
+df_scale <- data.frame(df_scale,train_df[,catv],train_df[,logv])
 
 # perform cross-validtion on training data set
-library(caret)
-controlParameter=trainControl(method = "cv",number = 10,savePredictions = TRUE)
+controlParameter=trainControl(method = "cv", number = 10, savePredictions = TRUE)
 
 # Reference:
 # http://topepo.github.io/caret/train-models-by-tag.html
 
 
 # linear regression
-set.seed(564)
-lm = train(SalePrice~., data = df,method='lm',trControl=controlParameter)
-coef(lm)
-summary(lm)
+lm_ols <- train(SalePrice~.,
+                data = train_df,
+                method='lm',
+                trControl=controlParameter)
+
+# Some manual feature engineering
+
+# Try a linear model with the most significant feature from each category (given OLS)
+lm_cats <- train(SalePrice~TotBathrooms+SaleCondition+GarageArea+
+                   KitchenQual+GrLivArea+TotalBsmtSF+OverallCond+OverallQual+
+                   BldgType+Condition1+MSZoning,
+                 data=train_df, 
+                 method="lm",
+                 trControl=controlParameter)
 
 # Feature selection by AIC stepwise algorithm
 # Errors for below three method, I am not sure why is that
-library(leaps)
-lm_forward=train(SalePrice~.,data=df,method='leapForward',trControl=controlParameter)
-lm_backward=train(SalePrice~.,data=df,method='leapBackward',trControl=controlParameter)
-lm_step=train(SalePrice~.,data=df,method='leapSeq',trControl=controlParameter)
-# Linear Regression with Stepwise Selection
-lm_stepAIC=train(SalePrice~.,data=df,method='lmStepAIC',trControl=controlParameter)
+lm_forward <- train(SalePrice~., 
+                    data=train_df,
+                    method='leapForward',
+                    trControl=controlParameter,
+                    tuneGrid = expand.grid(nvmax = seq(1, 180, 1)))
+
+lm_backward <- train(SalePrice~., 
+                     data=train_df,
+                     method='leapBackward', 
+                     trControl=controlParameter, 
+                     tuneGrid = expand.grid(nvmax = seq(1, 180, 1)))
+
+#lm_step <- train(SalePrice~.,
+#                 data=train_df,
+#                 method='leapSeq',
+#                 trControl=controlParameter,
+#                 tuneGrid = expand.grid(nvmax = seq(1, 50, 1)))
+
+# Linear Regression with Stepwise Selection - warning: takes a while
+# lm_stepAIC <- train(SalePrice~.,data=train_df,method='lmStepAIC',trControl=controlParameter)
 
 # Generalized Linear Model with Stepwise Feature Selection
-# glm_stepAIC=train(SalePrice~.,data=df,method='glmStepAIC',trControl=controlParameter)
+# glm_stepAIC <- train(SalePrice~.,data=df,method='glmStepAIC',trControl=controlParameter)
 
-# models with penalty
-# Ridge regression
-lambdas = 10^seq(10, -2, length = 100)
-# ridge_fit <- cv.glmnet(train_matrix, y, alpha=0, lambda=lambdas)
-ridgeGrid=expand.grid(alpha=0,lambda=lambdas)
-lm_ridge=train(SalePrice~., data=df, method = 'glmnet',trControl=controlParameter,tuneGrid=ridgeGrid)
+# Regularization methods
 
-# Lasso regression
-# lasso_fit <- cv.glmnet(train_matrix, y, alpha=1, lambda=lambdas)
-lassoGrid=expand.grid(alpha=1,lambda=lambdas)
-lm_lasso=train(SalePrice~., data=df, method = 'glmnet',trControl=controlParameter,tuneGrid=lassoGrid)
+# Ridge regression - not converging nicely
+lambdas <- 10^seq(2, -5, length = 100) # This NaNs after like 400
+ridgeGrid <- expand.grid(alpha=0,lambda=lambdas)
+lm_ridge <- train(SalePrice~., data=train_df, method = 'glmnet', trControl=controlParameter, tuneGrid=ridgeGrid)
+
+# Lasso regression - this one converges better
+lambdas <- 10^seq(-2, -5, length = 300) # Opt lambda probably between .00001 and .01
+lassoGrid <- expand.grid(alpha=1,lambda=lambdas)
+lm_lasso <- train(SalePrice~., data=train_df, method = 'glmnet', trControl=controlParameter, tuneGrid=lassoGrid)
 
 # Elasticnet regression
-lm_elas=train(SalePrice~., data=df, method = 'glmnet', trControl=controlParameter)
-
-
+elasGrid <- expand.grid(alpha=seq(0, 1, length=21),lambda=lambdas)
+lm_elas <- train(SalePrice~., data=train_df, method = 'glmnet', trControl=controlParameter, tuneGrid=elasGrid)
 
 # Tree-Based model
 # CART Tree, cannot set method to be anova 
-tree_cp=train(SalePrice~.,data=df,method='rpart',trControl=controlParameter)
-# tree_1se=train(SalePrice~.,data=df,method='rpart1SE',trControl=controlParameter)
-
-
-
-# Make Prediction
-lm_pred = predict(lm,df)
-lm_forward_pred = predict(lm_forward,df)
-lm_backward_pred = predict(lm_backward,df)
-lm_step_pred = predict(lm_step,df)
-# lm_stepAIC_pred = predict(lm_stepAIC,df)
-lm_lasso_pred=predict(lm_lasso,df)
-lm_ridge_pred=predict(lm_ridge,df)
-lm_elas_pred=predict(lm_elas,df)
-tree_cp_pred=predict(tree_cp,df)
-
-# To calculate rmlse
-lm_rmlse = rmlse(abs(lm_pred), df$SalePrice)
-lm_forward_rmlse = rmlse(abs(lm_forward_pred), df$SalePrice) 
-lm_backward_rmlse = rmlse(abs(lm_backward_pred), df$SalePrice)
-lm_step_rmlse = rmlse(abs(lm_step_pred), df$SalePrice)
-# lm_stepAIC_rmlse = rmlse(abs(lm_stepAIC_pred), df$SalePrice)
-lm_lasso_rmlse=rmlse(abs(lm_lasso_pred), df$SalePrice)
-lm_ridge_rmlse=rmlse(abs(lm_ridge_pred), df$SalePrice)
-lm_elas_rmlse=rmlse(abs(lm_elas_pred), df$SalePrice)
-tree_cp_rmlse=rmlse(abs(tree_cp_pred), df$SalePrice)
-
-
-
+tree_cp <- train(SalePrice~.,data=train_df,method='rpart',trControl=controlParameter)
+# tree_1se <- train(SalePrice~.,data=df,method='rpart1SE',trControl=controlParameter)
 
 # tree regression via rpart package
 # grow the tree
-library(rpart)
-tr=rpart(df$SalePrice~.,data = df, method = 'anova')
-printcp(tr)
-plotcp(tr)
-summary(tr)
-plot(tr, uniform=TRUE, main="Regression Tree")
-text(tr, use.n=TRUE, all=TRUE, cex=.8)
+tree_anova <- rpart(train_df$SalePrice~.,data = train_df, method = 'anova')
+printcp(tree_anova)
+plotcp(tree_anova)
+summary(tree_anova)
+plot(tree_anova, uniform=TRUE, main="Regression Tree")
+text(tree_anova, use.n=TRUE, all=TRUE, cex=.8)
 # prune the tree
-pfit= prune(tr, cp=0.020665) # use the minimum Cp
+pfit <- prune(tree_anova, cp=0.020665) # use the minimum Cp
 # plot the pruned tree 
 plot(pfit, uniform=TRUE, main="Pruned Regression Tree")
 text(pfit, use.n=TRUE, all=TRUE, cex=.8)
 
+
+# Make Prediction
+lm_ols_pred <- predict(lm_ols,train_df)
+lm_cats_pred <- predict(lm_cats,train_df)
+lm_forward_pred <- predict(lm_forward,train_df)
+lm_backward_pred <- predict(lm_backward,train_df)
+lm_step_pred <- predict(lm_step,train_df)
+# lm_stepAIC_pred = predict(lm_stepAIC,df)
+lm_lasso_pred <- predict(lm_lasso,train_df)
+lm_ridge_pred <- predict(lm_ridge,train_df)
+lm_elas_pred <- predict(lm_elas,train_df)
+tree_cp_pred <- predict(tree_cp,train_df)
+
+# To calculate rmlse
+lm_rmlse <- rmlse(abs(lm_ols_pred), train_df$SalePrice)
+lm_cats_rmlse <- rmlse(abs(lm_cats_pred), train_df$SalePrice)
+lm_forward_rmlse <- rmlse(abs(lm_forward_pred), train_df$SalePrice) 
+lm_backward_rmlse <- rmlse(abs(lm_backward_pred), train_df$SalePrice)
+lm_step_rmlse <- rmlse(abs(lm_step_pred), train_df$SalePrice)
+# lm_stepAIC_rmlse = rmlse(abs(lm_stepAIC_pred), df$SalePrice)
+lm_lasso_rmlse <- rmlse(abs(lm_lasso_pred), train_df$SalePrice)
+lm_ridge_rmlse <- rmlse(abs(lm_ridge_pred), train_df$SalePrice)
+lm_elas_rmlse <- rmlse(abs(lm_elas_pred), train_df$SalePrice)
+tree_cp_rmlse <- rmlse(abs(tree_cp_pred), train_df$SalePrice)
+
+# Tabular scores for comparison
+
+rmlse_scores <- c(lm_rmlse, lm_cats_rmlse, lm_forward_rmlse, lm_backward_rmlse, 
+                  lm_step_rmlse, lm_ridge_rmlse, lm_lasso_rmlse,
+                  # lm_stepAIC_rmlse,
+                  lm_elas_rmlse, tree_cp_rmlse)
+
+names(rmlse_scores) <- c("OLS_Full", "OLS_Manual", "OLS_Forward", "OLS_Backward", "OLS_Stepwise",
+                         "LASSO",
+                          # "OLS_StepAIC",
+                          "Ridge","Elastic","Tree_CP")
+
+# Compile all the best CV scores
+
+
+lm_ols$results[as.numeric(rownames(lm_ols$bestTune)),]
+lm_cats$results[as.numeric(rownames(lm_cats$bestTune)),]
+lm_forward$results[as.numeric(rownames(lm_forward$bestTune)),]
+lm_backward$results[as.numeric(rownames(lm_backward$bestTune)),]
+lm_step$results[as.numeric(rownames(lm_step$bestTune)),]
+lm_ridge$results[as.numeric(rownames(lm_ridge$bestTune)),]
+lm_lasso$results[as.numeric(rownames(lm_lasso$bestTune)),]
+lm_elas$results[as.numeric(rownames(lm_elas$bestTune)),]
+
+rmse <- c(min(lm_ols$results['RMSE']), min(lm_cats$results['RMSE']), min(lm_forward$results['RMSE']),
+          min(lm_backward$results['RMSE']), min(lm_step$results['RMSE']), min(lm_ridge$results['RMSE']),
+          min(lm_lasso$results['RMSE']), )
+
+# Residual analysis
+
+summary(lm_ols)
+summary(lm_ridge)
