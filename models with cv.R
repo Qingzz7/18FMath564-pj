@@ -11,8 +11,8 @@ set.seed(564)
 # cross validation model frame
 # 181114 yuqing zhao
 
-train_df <- read.csv('/Users/Grant/gdfs/My Drive/F2018/MATH564/18FMath564-pj/data/train_processed.csv')
-val_df <- read.csv('/Users/Grant/gdfs/My Drive/F2018/MATH564/18FMath564-pj/data/test_processed.csv')
+train_df <- read.csv('~/Documents/GitHub/18FMath564-pj/data/train_processed.csv')
+val_df <- read.csv('~/Documents/GitHub/18FMath564-pj/data/test_processed.csv')
 
 #remove first two columns which are index
 train_df <- train_df[,-c(1,2)]
@@ -52,8 +52,11 @@ rmlse <- function(yhat, y) {
 numv <- names(train_df[,sapply(train_df,is.numeric)]) # numeric 
 catv <- names(train_df[,sapply(train_df,is.factor)]) # numeric 
 logv <- names(train_df[,sapply(train_df,is.logical)]) # binary
-df_scale <- scale(train_df[,numv],center=FALSE)
-df_scale <- data.frame(df_scale,train_df[,catv],train_df[,logv])
+numv=numv[-10] # not scale the target
+train_df_scale <- scale(train_df[,numv],center=FALSE)
+train_df <- data.frame(train_df_scale,train_df[,catv],train_df[,logv],train_df['SalePrice'])
+val_df_scale <- scale(val_df[,numv],center=FALSE)
+val_df <- data.frame(val_df_scale,val_df[,catv],val_df[,logv])
 
 # perform cross-validtion on training data set
 controlParameter=trainControl(method = "cv", number = 10, savePredictions = TRUE)
@@ -70,7 +73,6 @@ lm_ols <- train(SalePrice~.,
 ols_fit <- lm_ols$finalModel
 
 # Some manual feature engineering
-
 # Try a linear model with the most significant feature from each category (given OLS)
 lm_cats <- train(SalePrice~TotBathrooms+SaleCondition+GarageArea+
                    KitchenQual+GrLivArea+TotalBsmtSF+OverallCond+OverallQual+
@@ -107,8 +109,9 @@ bwd_fit <- lm_backward$finalModel
 # Generalized Linear Model with Stepwise Feature Selection
 # glm_stepAIC <- train(SalePrice~.,data=df,method='glmStepAIC',trControl=controlParameter)
 
-# Regularization methods
 
+
+# Regularization methods
 # Ridge regression - not converging nicely
 lambdas <- 10^seq(-1, -5, length = 100) # This NaNs after like 400
 ridgeGrid <- expand.grid(alpha=0,lambda=lambdas)
@@ -145,22 +148,8 @@ tree_fit <- tree_cp$finalModel
 
 # tree_1se <- train(SalePrice~.,data=df,method='rpart1SE',trControl=controlParameter)
 
-# tree regression via rpart package
-# grow the tree
-tree_anova <- rpart(train_df$SalePrice~.,data = train_df, method = 'anova')
-printcp(tree_anova)
-plotcp(tree_anova)
-summary(tree_anova)
-plot(tree_anova, uniform=TRUE, main="Regression Tree")
-text(tree_anova, use.n=TRUE, all=TRUE, cex=.8)
-# prune the tree
-pfit <- prune(tree_anova, cp=0.020665) # use the minimum Cp
-# plot the pruned tree 
-plot(pfit, uniform=TRUE, main="Pruned Regression Tree")
-text(pfit, use.n=TRUE, all=TRUE, cex=.8)
 
-
-# Make Prediction
+# Make Prediction on training data
 lm_ols_pred <- predict(lm_ols,train_df)
 lm_cats_pred <- predict(lm_cats,train_df)
 lm_forward_pred <- predict(lm_forward,train_df)
@@ -195,15 +184,12 @@ lm_elas_rmlse <- rmlse(abs(lm_elas_pred), train_df$SalePrice)
 tree_cp_rmlse <- rmlse(abs(tree_cp_pred), train_df$SalePrice)
 
 # Tabular scores for comparison
-
 rmlse_scores <- c(lm_rmlse, lm_cats_rmlse, lm_forward_rmlse,
                   lm_backward_rmlse, lm_ridge_rmlse, lm_lasso_rmlse,
                   lm_elas_rmlse, tree_cp_rmlse
                   # lm_step_rmlse,
                   # lm_stepAIC_rmlse
                   )
-                  
-
 names(rmlse_scores) <- c("OLS_Full", "OLS_Manual", "OLS_Forward",
                          "OLS_Backward", "Ridge", "LASSO",
                          "Elastic","Tree_CP"
@@ -212,7 +198,6 @@ names(rmlse_scores) <- c("OLS_Full", "OLS_Manual", "OLS_Forward",
                          )
 
 # Compile all the best CV scores
-
 best_lm_ols <- lm_ols$results[as.numeric(rownames(lm_ols$bestTune)),]
 best_lm_cats <- lm_cats$results[as.numeric(rownames(lm_cats$bestTune)),]
 best_lm_forward <- lm_forward$results[as.numeric(rownames(lm_forward$bestTune)),]
@@ -241,7 +226,6 @@ cv_results <- data.frame(method = names(rmlse_scores),
                                       best_lm_elastic['RMSESD'][1,1],
                                       best_tree_cp['RMSESD'][1,1]))
 
-
 ggplot(cv_results, aes(x=method, y=rmse)) + 
          geom_dotplot(binaxis = 'y', stackdir = 'center') +
          geom_errorbar(aes(ymin=rmse-rmse_sd, ymax=rmse+rmse_sd), width=.2,
@@ -251,7 +235,6 @@ ggplot(cv_results, aes(x=method, y=rmse)) +
 
 
 # Residuals
-
 residuals <- data.frame(id = seq(1, length(ols_res)),
                         OLS_Full=ols_res,
                         OLS_Manual=cats_res,
@@ -263,6 +246,7 @@ residuals <- data.frame(id = seq(1, length(ols_res)),
                         Tree=tree_res)
 
 res_melt <- melt(residuals, id.vars = "id")
+
 ggplot(res_melt, aes(x=id, y=value, color=variable)) + 
   geom_point(alpha=0.3, size=0.75) +
   scale_colour_manual(values=c("red", "blue", "green", "orange",
@@ -271,3 +255,47 @@ ggplot(res_melt, aes(x=id, y=value, color=variable)) +
   ylab("Residual Value") +
   scale_fill_discrete(name = "Model")
 
+
+
+# to make prediction on test data
+# Make Prediction on training data
+lm_ols_pred_val = predict(lm_ols,val_df, type = 'raw')
+length(lm_ols_pred_val)==nrow(na.omit(val_df))
+length(lm_ols_pred_val)==nrow(val_df)
+lm_cats_pred_val = predict(lm_cats,val_df, type = 'raw')
+lm_forward_pred_val = predict(lm_forward,val_df, type = 'raw')
+lm_backward_pred_val = predict(lm_backward,val_df, type = 'raw')
+# lm_step_pred_val = predict(lm_step,train_df, type = 'raw')
+# lm_stepAIC_pred_val = predict(lm_stepAIC,df, type = 'raw')
+lm_lasso_pred_val = predict(lm_lasso,val_df, type = 'raw')
+lm_ridge_pred_val = predict(lm_ridge,val_df, type = 'raw')
+lm_elas_pred_val = predict(lm_elas,val_df, type = 'raw')
+tree_cp_pred_val = predict(tree_cp,val_df, type = 'raw')
+
+# reverse the log to the real values for target
+lm_ols_prediction = exp(lm_ols_pred_val) 
+lm_cats_prediction = exp(lm_cats_pred_val)
+lm_forward_prediction = exp(lm_forward_pred_val)
+lm_backward_prediction = exp(lm_backward_pred_val)
+#lm_step_prediction = exp(lm_step_pred_val)
+# lm_stepAIC_prediction =exp(lm_stepAIC_pred_val)
+lm_lasso_prediction = exp(lm_lasso_pred_val)
+lm_ridge_prediction = exp(lm_ridge_pred_val)
+lm_elas_prediction = exp(lm_elas_pred_val)
+tree_cp_prediction = exp(tree_cp_pred_val)
+
+
+# tree regression via rpart package
+# not so useful here since this version does not have cross-validation
+# grow the tree
+tree_anova <- rpart(train_df$SalePrice~.,data = train_df, method = 'anova')
+printcp(tree_anova)
+plotcp(tree_anova)
+summary(tree_anova)
+plot(tree_anova, uniform=TRUE, main="Regression Tree")
+text(tree_anova, use.n=TRUE, all=TRUE, cex=.8)
+# prune the tree
+pfit <- prune(tree_anova, cp=0.020665) # use the minimum Cp
+# plot the pruned tree 
+plot(pfit, uniform=TRUE, main="Pruned Regression Tree")
+text(pfit, use.n=TRUE, all=TRUE, cex=.8)

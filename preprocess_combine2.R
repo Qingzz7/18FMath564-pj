@@ -322,14 +322,14 @@ cor_train_sort = as.data.frame(sort(cor_train[,'SalePrice'],decreasing = TRUE))
 highcor_name = names(which(apply(cor_train_sort, 1, function(x) abs(x)>0.35)))
 lowcor_name = names(which(apply(cor_train_sort, 1, function(x) abs(x)<0.35)))
 train_procdata[,lowcor_name]=NULL
-
+test_procdata[,lowcor_name]=NULL
 
 # remove variables that are in multicolinearity relation
 cor_mcl = cor(train_procdata[,names(train_procdata[,sapply(train_procdata,is.numeric)])]) 
 corrplot::corrplot.mixed(cor_mcl)
 dropVars = c('ExterQualNum','GarageCars','X1stFlrSF', 'TotRmsAbvGrd') # select variables with correlation larger than
 train_procdata = train_procdata[,!(names(train_procdata) %in% dropVars)]
-
+test_procdata = test_procdata[,!(names(test_procdata) %in% dropVars)]
 
 # use a small random forest to find important categorical variables
 library(randomForest)
@@ -339,6 +339,7 @@ RF_imp=as.data.frame( importance(RF) )
 imp_v = data.frame(Variables = row.names(RF_imp), IncMSE = RF_imp[,1],IncNodePurity=RF_imp[,2])
 imp_v = imp_v[order(imp_v$IncNodePurity, decreasing = TRUE),]
 train_procdata$Electrical=NULL
+test_procdata$Electrical=NULL
 
 # dropVarsc = c('Electrical') # IncNodePurity with < E09
 # dropVarsc = imp_v$Variables[imp_v$IncNodePurity<1.0e+10] # IncNodePurity with < E10
@@ -359,13 +360,12 @@ qqline(train_procdata$SalePrice)
 train_procdata$SalePrice=log(train_procdata$SalePrice)
 
 # check variables skewness ?????
-numv <- names(train_procdata[,sapply(train_procdata,is.numeric)]) # numeric 
-numv
-for(i in numv) {
-  if (abs(skewness(train_procdata[,i]))>0.8){
-    train_procdata[,i] = log(train_procdata[,i]+1)
-  }
-}
+# numv <- names(train_procdata[,sapply(train_procdata,is.numeric)]) # numeric 
+# numv
+# for(i in numv) {
+#  if (abs(skewness(train_procdata[,i]))>0.8){
+#    train_procdata[,i] = log(train_procdata[,i]+1)
+#  }}
 
 
 # write the data after preprocessing to file
