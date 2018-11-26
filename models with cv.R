@@ -3,6 +3,7 @@ library(caret)
 library(leaps)
 library(glmnet)
 library(ggplot2)
+library(reshape2)
 
 set.seed(564)
 
@@ -171,6 +172,16 @@ lm_ridge_pred <- predict(lm_ridge,train_df)
 lm_elas_pred <- predict(lm_elas,train_df)
 tree_cp_pred <- predict(tree_cp,train_df)
 
+# Residuals for each model
+ols_res <- ols_fit$residuals
+cats_res <- cats_fit$residuals
+fwd_res <- lm_forward_pred - train_df$SalePrice
+bwd_res <- lm_backward_pred - train_df$SalePrice
+lasso_res <- lm_lasso_pred - train_df$SalePrice
+ridge_res <- lm_ridge_pred - train_df$SalePrice
+elas_res <- lm_elas_pred - train_df$SalePrice
+tree_res <- tree_cp_pred - train_df$SalePrice
+
 # To calculate rmlse
 lm_rmlse <- rmlse(abs(lm_ols_pred), train_df$SalePrice)
 lm_cats_rmlse <- rmlse(abs(lm_cats_pred), train_df$SalePrice)
@@ -239,13 +250,24 @@ ggplot(cv_results, aes(x=method, y=rmse)) +
          ylab("Cross-Validation RMSE")
 
 
-# Explore the different final models from CV
+# Residuals
 
-plot(ols_fit$residuals)
-plot(cats_fit$residuals)
+residuals <- data.frame(id = seq(1, length(ols_res)),
+                        OLS_Full=ols_res,
+                        OLS_Manual=cats_res,
+                        OLS_Forward=fwd_res,
+                        OLS_Backward=bwd_res,
+                        Ridge=ridge_res,
+                        LASSO=lasso_res,
+                        Elastic=elas_res,
+                        Tree=tree_res)
 
+res_melt <- melt(residuals, id.vars = "id")
+ggplot(res_melt, aes(x=id, y=value, color=variable)) + 
+  geom_point(alpha=0.3, size=0.75) +
+  scale_colour_manual(values=c("red", "blue", "green", "orange",
+                               "gray", "brown", "black", "purple")) +
+  xlab("Observation Index") +
+  ylab("Residual Value") +
+  scale_fill_discrete(name = "Model")
 
-# Residual analysis
-
-summary(lm_ols)
-summary(lm_ridge)
