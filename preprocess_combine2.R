@@ -1,3 +1,4 @@
+
 train_fp <- "~/Documents/GitHub/18FMath564-pj/data/"
 test_fp <- "~/Documents/GitHub/18FMath564-pj/data/"
 
@@ -8,12 +9,32 @@ test_fn <- "test.csv"
 train_origdata <- read.csv(paste(train_fp,train_fn, sep=""))
 test_origdata <- read.csv(paste(test_fp, test_fn, sep=""))
 
-#quickly visualize the whole dataset 
+#2.3 data pre-processing
+#look at SalePrice
+#histogram of saleprice
+require("ggplot2")
+ggplot(data=train_origdata, aes(train_origdata$SalePrice)) + 
+  geom_histogram (col="red", aes(fill=..count..)) +
+  scale_fill_gradient("Count", low = "green", high = "red")+
+  labs(title="Histogram for SalePrie") +
+  labs(x="SalePrice", y="Count")
+
+#density plot of saleprice
+ggplot(data = train_origdata, aes(x = SalePrice)) + 
+  stat_density(colour = "skyblue2", fill="skyblue3")+
+  labs(title="Density plot for SalePrie")
+
+#boxplot for saleprice
+par(mfrow=c(1,2))
+boxplot(train_origdata$SalePrice, main="Boxplot for SalePrice")
+boxplot(log(train_origdata$SalePrice), main="Boxplot for Log transformation SalePrice")
+par(mfrow=c(1,1))
+#a quickly visualize of whole dataset 
 library(ggplot2)
 library(tabplot)
 library(plyr)
 data <- rbind(train_origdata[,2:80],test_origdata[,2:80])
-tableplot(data[,2:21])
+tableplot(data[,1:21])
 tableplot(data[,22:41])
 tableplot(data[,42:61])
 tableplot(data[,62:79])
@@ -306,7 +327,6 @@ train_procdata[,c('OpenPorchSF','EnclosedPorch','X3SsnPorch','ScreenPorch','Wood
 test_procdata[,c('OpenPorchSF','EnclosedPorch','X3SsnPorch','ScreenPorch','WoodDeckSF')]=NULL
 
 
-
 # find highily related numeric variables to sale price and drop numeric variables have correlation lower than 
 # check varaible type
 catv <- names(train_procdata[,sapply(train_procdata,is.factor)]) # categorical
@@ -326,7 +346,9 @@ test_procdata[,lowcor_name]=NULL
 
 # remove variables that are in multicolinearity relation
 cor_mcl = cor(train_procdata[,names(train_procdata[,sapply(train_procdata,is.numeric)])]) 
-corrplot::corrplot.mixed(cor_mcl)
+#corrplot::corrplot.mixed(cor_mcl)
+#correlation plot
+corrplot(cor_mcl,type="upper")
 dropVars = c('ExterQualNum','GarageCars','X1stFlrSF', 'TotRmsAbvGrd') # select variables with correlation larger than
 train_procdata = train_procdata[,!(names(train_procdata) %in% dropVars)]
 test_procdata = test_procdata[,!(names(test_procdata) %in% dropVars)]
@@ -345,6 +367,30 @@ test_procdata$Electrical=NULL
 # dropVarsc = imp_v$Variables[imp_v$IncNodePurity<1.0e+10] # IncNodePurity with < E10
 # train_procdata = train_procdata[,!dropVarsc %in% dropVarsc]
 
+#check test data and train data
+dim(train_procdata)
+dim(test_procdata)
+
+prodata <- rbind(train_procdata[,-46],test_procdata[,1:50])
+dim(prodata)
+#boxplot
+library(reshape)
+meltprodata <- melt(prodata)
+ggplot(meltprodata, aes(factor(variable), value)) + 
+  geom_boxplot(fill = "white", colour = "#3366FF",outlier.colour = "red", outlier.shape = 1) + facet_wrap(~variable, scale="free")+
+  labs(title = "Boxplots for numeric variables")+
+  theme(plot.title = element_text(hjust = 0.5))
+  
+#density plot
+ggplot(data = meltprodata, aes(x = value)) + 
+  stat_density() + 
+  facet_wrap(~variable, scales = "free")+labs(title = "Density plot for numeric variables")+
+  theme(plot.title = element_text(hjust = 0.5))
+#histgram for numeric variables 
+ggplot(meltprodata,aes(x=value, fill=variable)) + geom_histogram(alpha=0.25)+
+  labs(title = "Histgram for numeric variables")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_x_continuous(limits = c(-100, 3000))
 
 # linear regression for test
 l=lm(SalePrice~.,train_procdata)
@@ -371,5 +417,8 @@ train_procdata$SalePrice=log(train_procdata$SalePrice)
 # write the data after preprocessing to file
 write.csv(train_procdata, file=paste(train_fp,"train_processed.csv", sep=""))
 write.csv(test_procdata, file=paste(test_fp,"test_processed.csv", sep=""))
+
+
+
 
 
