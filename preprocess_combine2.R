@@ -345,6 +345,7 @@ train_procdata[,lowcor_name]=NULL
 test_procdata[,lowcor_name]=NULL
 
 # remove variables that are in multicolinearity relation
+library(corrplot)
 cor_mcl = cor(train_procdata[,names(train_procdata[,sapply(train_procdata,is.numeric)])]) 
 #corrplot::corrplot.mixed(cor_mcl)
 #correlation plot
@@ -371,7 +372,27 @@ test_procdata$Electrical=NULL
 dim(train_procdata)
 dim(test_procdata)
 
-prodata <- rbind(train_procdata[,-46],test_procdata[,1:50])
+
+# linear regression for test
+l=lm(SalePrice~.,train_procdata)
+plot(l)
+
+# check and remove ourliers ?????
+train_procdata=train_procdata[-c(524,1183,1299),] # from linear regression plots
+
+# check target distribution
+qqnorm(train_procdata$SalePrice)
+qqline(train_procdata$SalePrice)
+# apply log transformation to the target
+train_procdata$SalePrice=log(train_procdata$SalePrice)
+# write the data after preprocessing to file
+write.csv(train_procdata, file=paste(train_fp,"train_processed.csv", sep=""))
+write.csv(test_procdata, file=paste(test_fp,"test_processed.csv", sep=""))
+
+
+
+
+prodata <- rbind(train_procdata[,-46],test_procdata[,1:50]) #??? to plot
 dim(prodata)
 #boxplot
 library(reshape)
@@ -392,18 +413,6 @@ ggplot(meltprodata,aes(x=value, fill=variable)) + geom_histogram(alpha=0.25)+
   theme(plot.title = element_text(hjust = 0.5))+
   scale_x_continuous(limits = c(-100, 3000))
 
-# linear regression for test
-l=lm(SalePrice~.,train_procdata)
-plot(l)
-
-# check and remove ourliers ?????
-train_procdata=train_procdata[-c(524,1183,1299),] # from linear regression plots
-
-# check target distribution
-qqnorm(train_procdata$SalePrice)
-qqline(train_procdata$SalePrice)
-# apply log transformation to the target
-train_procdata$SalePrice=log(train_procdata$SalePrice)
 
 # check variables skewness ?????
 # numv <- names(train_procdata[,sapply(train_procdata,is.numeric)]) # numeric 
@@ -414,9 +423,7 @@ train_procdata$SalePrice=log(train_procdata$SalePrice)
 #  }}
 
 
-# write the data after preprocessing to file
-write.csv(train_procdata, file=paste(train_fp,"train_processed.csv", sep=""))
-write.csv(test_procdata, file=paste(test_fp,"test_processed.csv", sep=""))
+
 
 
 
