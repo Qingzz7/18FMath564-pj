@@ -16,13 +16,15 @@ require("ggplot2")
 ggplot(data=train_origdata, aes(train_origdata$SalePrice)) + 
   geom_histogram (col="red", aes(fill=..count..)) +
   scale_fill_gradient("Count", low = "green", high = "red")+
-  labs(title="Histogram for SalePrie") +
-  labs(x="SalePrice", y="Count")
+  labs(title="Histogram for SalePrice") +
+  labs(x="SalePrice", y="Count")+
+  theme(plot.title = element_text(hjust = 0.5))
 
 #density plot of saleprice
 ggplot(data = train_origdata, aes(x = SalePrice)) + 
   stat_density(colour = "skyblue2", fill="skyblue3")+
-  labs(title="Density plot for SalePrie")
+  labs(title="Density plot for SalePrice")+
+  theme(plot.title = element_text(hjust = 0.5))
 
 #boxplot for saleprice
 par(mfrow=c(1,2))
